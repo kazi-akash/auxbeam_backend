@@ -146,6 +146,124 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get user's roles.
+     */
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_roles');
+    }
+
+    /**
+     * Get customer segments.
+     */
+    public function segments()
+    {
+        return $this->belongsToMany(CustomerSegment::class, 'customer_segment_assignments', 'user_id', 'customer_segment_id')
+            ->withPivot('assigned_at', 'assigned_by', 'notes')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get customer tags.
+     */
+    public function tags()
+    {
+        return $this->belongsToMany(CustomerTag::class, 'customer_tag_assignments', 'user_id', 'customer_tag_id')
+            ->withPivot('assigned_at', 'assigned_by')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get customer analytics.
+     */
+    public function analytics()
+    {
+        return $this->hasOne(CustomerAnalytics::class);
+    }
+
+    /**
+     * Check if user has a specific role.
+     */
+    public function hasRole(string $roleName): bool
+    {
+        return $this->roles()->where('name', $roleName)->exists();
+    }
+
+    /**
+     * Check if user has any of the given roles.
+     */
+    public function hasAnyRole(array $roleNames): bool
+    {
+        return $this->roles()->whereIn('name', $roleNames)->exists();
+    }
+
+    /**
+     * Check if user has all of the given roles.
+     */
+    public function hasAllRoles(array $roleNames): bool
+    {
+        return $this->roles()->whereIn('name', $roleNames)->count() === count($roleNames);
+    }
+
+    /**
+     * Check if user has a specific permission.
+     */
+    public function hasPermission(string $permissionName): bool
+    {
+        return $this->roles()
+            ->whereHas('permissions', function ($query) use ($permissionName) {
+                $query->where('name', $permissionName);
+            })
+            ->exists();
+    }
+
+    /**
+     * Check if user has any of the given permissions.
+     */
+    public function hasAnyPermission(array $permissionNames): bool
+    {
+        return $this->roles()
+            ->whereHas('permissions', function ($query) use ($permissionNames) {
+                $query->whereIn('name', $permissionNames);
+            })
+            ->exists();
+    }
+
+    /**
+     * Assign role to user.
+     */
+    public function assignRole(Role $role): void
+    {
+        $this->roles()->syncWithoutDetaching($role);
+    }
+
+    /**
+     * Remove role from user.
+     */
+    public function removeRole(Role $role): void
+    {
+        $this->roles()->detach($role);
+    }
+
+    /**
+     * Sync roles for user.
+     */
+    public function syncRoles(array $roleIds): void
+    {
+        $this->roles()->sync($roleIds);
+    }
+
+    /**
+     * Get all permissions for user through roles.
+     */
+    public function getAllPermissions()
+    {
+        return Permission::whereHas('roles', function ($query) {
+            $query->whereIn('roles.id', $this->roles()->pluck('roles.id'));
+        })->get();
+    }
+
+    /**
      * Scope for active users.
      */
     public function scopeActive($query)

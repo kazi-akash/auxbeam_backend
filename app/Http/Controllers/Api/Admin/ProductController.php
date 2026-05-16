@@ -395,7 +395,7 @@ class ProductController extends Controller
      */
     private function convertBooleanFields(Request $request): void
     {
-        $booleanFields = ['is_featured', 'is_trending', 'is_preorder', 'kinomap'];
+        $booleanFields = ['is_featured', 'is_trending', 'is_preorder', 'kinomap', 'requires_shipping', 'separate_shipping'];
         
         foreach ($booleanFields as $field) {
             if ($request->has($field)) {
@@ -413,6 +413,17 @@ class ProductController extends Controller
                 }
             }
             $request->merge(['images' => $images]);
+        }
+
+        // Convert boolean fields in variations array
+        if ($request->has('variations') && is_array($request->input('variations'))) {
+            $variations = $request->input('variations');
+            foreach ($variations as $index => $variation) {
+                if (isset($variation['is_default'])) {
+                    $variations[$index]['is_default'] = $this->toBool($variation['is_default']);
+                }
+            }
+            $request->merge(['variations' => $variations]);
         }
     }
 

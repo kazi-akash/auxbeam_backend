@@ -12,8 +12,12 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            // RBAC must run before any user seeders that assign roles
+            RBACSeeder::class,
+
             // Core data
             UserSeeder::class,
+            DummyAdminUsersSeeder::class,
             CategorySeeder::class,
             BrandSeeder::class,
             ProductModelSeeder::class,

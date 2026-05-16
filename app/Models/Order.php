@@ -14,6 +14,13 @@ class Order extends Model
         'user_id',
         'order_number',
         'order_type',
+        'order_source',
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_content',
+        'utm_term',
+        'referrer_url',
         'shipping_address_id',
         'billing_address_id',
         'subtotal',
@@ -27,6 +34,8 @@ class Order extends Model
         'status',
         'payment_status',
         'notes',
+        'follow_up_at',
+        'follow_up_completed',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -41,6 +50,8 @@ class Order extends Model
         'is_preorder' => 'boolean',
         'preorder_deposit_paid' => 'decimal:2',
         'preorder_remaining_amount' => 'decimal:2',
+        'follow_up_at' => 'datetime',
+        'follow_up_completed' => 'boolean',
     ];
 
     /**
@@ -161,6 +172,87 @@ class Order extends Model
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Get order notes.
+     */
+    public function orderNotes()
+    {
+        return $this->hasMany(OrderNote::class)->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Get order reminders.
+     */
+    public function reminders()
+    {
+        return $this->hasMany(OrderReminder::class)->orderBy('remind_at', 'asc');
+    }
+
+    /**
+     * Get status history.
+     */
+    public function statusHistory()
+    {
+        return $this->hasMany(OrderStatusHistory::class)->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Add a note to the order.
+     */
+    public function addNote(string $note, string $noteType = 'internal', ?int $userId = null, bool $notifyCustomer = false): OrderNote
+    {
+        return $this->orderNotes()->create([
+            'user_id' => $userId,
+            'note' => $note,
+            'note_type' => $noteType,
+            'is_customer_notified' => $notifyCustomer,
+        ]);
+    }
+
+    /**
+     * Add a reminder to the order.
+     */
+    public function addReminder(string $title, \DateTime $remindAt, ?string $description = null, ?int $createdBy = null, ?int $assignedTo = null): OrderReminder
+    {
+        return $this->reminders()->create([
+            'title' => $title,
+            'description' => $description,
+            'remind_at' => $remindAt,
+            'created_by' => $createdBy,
+            'assigned_to' => $assignedTo,
+        ]);
+    }
+
+    /**
+     * Log status change.
+     */
+    public function logStatusChange(string $toStatus, ?string $fromStatus = null, ?int $userId = null, ?string $note = null): OrderStatusHistory
+    {
+        return $this->statusHistory()->create([
+            'from_status' => $fromStatus ?? $this->status,
+            'to_status' => $toStatus,
+            'user_id' => $userId,
+            'note' => $note,
+        ]);
+    }
+
+    /**
+     * Update order status with logging.
+     */
+    public function updateStatus(string $newStatus, ?int $userId = null, ?string $note = null): bool
+    {
+        $oldStatus = $this->status;
+        
+        $this->status = $newStatus;
+        $saved = $this->save();
+
+        if ($saved) {
+            $this->logStatusChange($newStatus, $oldStatus, $userId, $note);
+        }
+
+        return $saved;
     }
 
     /**
@@ -307,5 +399,79 @@ class Order extends Model
     {
         return $query->where('is_preorder', true)
             ->where('preorder_payment_status', 'deposit_paid');
+    }
+
+    /**
+     * Scope for incomplete orders.
+     */
+    public function scopeIncomplete($query)
+    {
+        return $query->where('status', 'incomplete');
+    }
+
+    /**
+     * Scope for orders by source.
+     */
+    public function scopeBySource($query, string $source)
+    {
+        return $query->where('order_source', $source);
+    }
+
+    /**
+     * Scope for orders with UTM campaign.
+     */
+    public function scopeWithUtmCampaign($query, string $campaign)
+    {
+        return $query->where('utm_campaign', $campaign);
+    }
+
+    /**
+     * Scope for orders needing follow-up.
+     */
+    public function scopeNeedingFollowUp($query)
+    {
+        return $query->where('follow_up_completed', false)
+            ->whereNotNull('follow_up_at')
+            ->where('follow_up_at', '<=', now());
+    }
+
+    /**
+     * Get order source display name.
+     */
+    public function getOrderSourceDisplayAttribute(): string
+    {
+        return match($this->order_source) {
+            'website' => 'Website',
+            'facebook' => 'Facebook',
+            'instagram' => 'Instagram',
+            'whatsapp' => 'WhatsApp',
+            'phone_call' => 'Phone Call',
+            'manual' => 'Manual Entry',
+            default => 'Unknown',
+        };
+    }
+
+    /**
+     * Get status display name.
+     */
+    public function getStatusDisplayAttribute(): string
+    {
+        return match($this->status) {
+            'pending' => 'Pending',
+            'confirmed' => 'Confirmed',
+            'processing' => 'Processing',
+            'incomplete' => 'Incomplete',
+            'good_but_no_response' => 'Good but No Response',
+            'advance_payment' => 'Advance Payment',
+            'on_hold' => 'On Hold',
+            'ready_to_ship' => 'Ready to Ship',
+            'shipped' => 'Shipped',
+            'complete' => 'Complete',
+            'cancelled' => 'Cancelled',
+            'return_requested' => 'Return Requested',
+            'return_approved' => 'Return Approved',
+            'refunded' => 'Refunded',
+            default => 'Unknown',
+        };
     }
 }

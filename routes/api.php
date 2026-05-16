@@ -230,6 +230,46 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('orders/{id}/tracking', [\App\Http\Controllers\Api\Admin\OrderController::class, 'assignTracking']);
     Route::put('orders/{id}/notes', [\App\Http\Controllers\Api\Admin\OrderController::class, 'updateNotes']);
 
+    // Order Management (New)
+    Route::prefix('orders')->group(function () {
+        Route::get('incomplete', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'incomplete']);
+        Route::get('hourly-report', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'hourlyReport']);
+        Route::get('by-source', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'bySource']);
+        Route::get('by-utm-campaign', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'byUtmCampaign']);
+        Route::get('needing-follow-up', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'needingFollowUp']);
+        Route::get('status-statistics', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'statusStatistics']);
+        Route::get('{id}/status-history', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'statusHistory']);
+        Route::post('{id}/complete-follow-up', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'completeFollowUp']);
+        Route::post('{id}/set-follow-up', [\App\Http\Controllers\Api\Admin\OrderManagementController::class, 'setFollowUp']);
+    });
+
+    // Order Notes (New)
+    Route::prefix('orders/{orderId}/notes')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Admin\OrderNoteController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Admin\OrderNoteController::class, 'store']);
+        Route::put('{noteId}', [\App\Http\Controllers\Api\Admin\OrderNoteController::class, 'update']);
+        Route::delete('{noteId}', [\App\Http\Controllers\Api\Admin\OrderNoteController::class, 'destroy']);
+    });
+
+    // Order Reminders (New)
+    Route::prefix('orders/{orderId}/reminders')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Admin\OrderReminderController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Admin\OrderReminderController::class, 'store']);
+        Route::put('{reminderId}', [\App\Http\Controllers\Api\Admin\OrderReminderController::class, 'update']);
+        Route::post('{reminderId}/complete', [\App\Http\Controllers\Api\Admin\OrderReminderController::class, 'complete']);
+        Route::delete('{reminderId}', [\App\Http\Controllers\Api\Admin\OrderReminderController::class, 'destroy']);
+    });
+
+    // Global Reminders (New)
+    Route::get('reminders/pending', [\App\Http\Controllers\Api\Admin\OrderReminderController::class, 'pending']);
+    Route::get('reminders/upcoming', [\App\Http\Controllers\Api\Admin\OrderReminderController::class, 'upcoming']);
+
+    // RBAC - Roles & Permissions (New)
+    Route::apiResource('roles', \App\Http\Controllers\Api\Admin\RoleController::class);
+    Route::get('roles/permissions/all', [\App\Http\Controllers\Api\Admin\RoleController::class, 'permissions']);
+    Route::post('roles/{role}/assign-users', [\App\Http\Controllers\Api\Admin\RoleController::class, 'assignUsers']);
+    Route::post('roles/{role}/remove-users', [\App\Http\Controllers\Api\Admin\RoleController::class, 'removeUsers']);
+
     // POS
     Route::prefix('pos')->group(function () {
         Route::post('orders', [\App\Http\Controllers\Api\Admin\POSController::class, 'createOrder']);
@@ -383,7 +423,78 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
         Route::get('statistics', [\App\Http\Controllers\Api\Admin\VisitorPopupController::class, 'statistics']);
         Route::get('export', [\App\Http\Controllers\Api\Admin\VisitorPopupController::class, 'export']);
         Route::get('{id}', [\App\Http\Controllers\Api\Admin\VisitorPopupController::class, 'show']);
-        Route::delete('{id}', [\App\Http\Controllers\Api\Admin\VisitorPopupController::class, 'destroy']);
+    });
+
+    // Customer Segmentation (New - Phase 2)
+    Route::prefix('customer-segments')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'store']);
+        Route::get('{id}', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'show']);
+        Route::put('{id}', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'update']);
+        Route::delete('{id}', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'destroy']);
+        Route::get('{id}/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'customers']);
+        Route::post('{id}/assign-customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'assignCustomers']);
+        Route::post('{id}/remove-customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'removeCustomers']);
+        Route::post('auto-assign-all', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'autoAssignAll']);
+        Route::get('vip/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'vipCustomers']);
+        Route::get('cod-risk/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'codRiskCustomers']);
+        Route::get('repeat/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'repeatCustomers']);
+    });
+
+    // Customer Tags (New - Phase 2)
+    Route::prefix('customer-tags')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Admin\CustomerTagController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Admin\CustomerTagController::class, 'store']);
+        Route::get('{id}', [\App\Http\Controllers\Api\Admin\CustomerTagController::class, 'show']);
+        Route::put('{id}', [\App\Http\Controllers\Api\Admin\CustomerTagController::class, 'update']);
+        Route::delete('{id}', [\App\Http\Controllers\Api\Admin\CustomerTagController::class, 'destroy']);
+        Route::post('{id}/assign-to-customers', [\App\Http\Controllers\Api\Admin\CustomerTagController::class, 'assignToCustomers']);
+        Route::post('{id}/remove-from-customers', [\App\Http\Controllers\Api\Admin\CustomerTagController::class, 'removeFromCustomers']);
+        Route::get('{id}/customers', [\App\Http\Controllers\Api\Admin\CustomerTagController::class, 'customers']);
+    });
+
+    // Customer Analytics (New - Phase 2)
+    Route::prefix('customer-analytics')->group(function () {
+        Route::get('dashboard', [\App\Http\Controllers\Api\Admin\CustomerAnalyticsController::class, 'dashboard']);
+        Route::get('growth-report', [\App\Http\Controllers\Api\Admin\CustomerAnalyticsController::class, 'growthReport']);
+        Route::get('ltv-distribution', [\App\Http\Controllers\Api\Admin\CustomerAnalyticsController::class, 'ltvDistribution']);
+        Route::get('{customerId}/spending-summary', [\App\Http\Controllers\Api\Admin\CustomerAnalyticsController::class, 'spendingSummary']);
+        Route::post('{customerId}/calculate', [\App\Http\Controllers\Api\Admin\CustomerAnalyticsController::class, 'calculateCustomer']);
+    });
+
+    // SMS Management (New - Phase 2.2)
+    Route::prefix('sms')->group(function () {
+        // Templates
+        Route::get('templates', [\App\Http\Controllers\Api\Admin\SmsController::class, 'templates']);
+        Route::post('templates', [\App\Http\Controllers\Api\Admin\SmsController::class, 'storeTemplate']);
+        Route::put('templates/{id}', [\App\Http\Controllers\Api\Admin\SmsController::class, 'updateTemplate']);
+        Route::delete('templates/{id}', [\App\Http\Controllers\Api\Admin\SmsController::class, 'deleteTemplate']);
+        
+        // Logs
+        Route::get('logs', [\App\Http\Controllers\Api\Admin\SmsController::class, 'logs']);
+        Route::post('logs/{id}/retry', [\App\Http\Controllers\Api\Admin\SmsController::class, 'retryLog']);
+        
+        // Configuration
+        Route::get('configurations', [\App\Http\Controllers\Api\Admin\SmsController::class, 'configurations']);
+        Route::post('configurations', [\App\Http\Controllers\Api\Admin\SmsController::class, 'storeConfiguration']);
+        Route::put('configurations/{id}', [\App\Http\Controllers\Api\Admin\SmsController::class, 'updateConfiguration']);
+        Route::delete('configurations/{id}', [\App\Http\Controllers\Api\Admin\SmsController::class, 'deleteConfiguration']);
+        
+        // Send SMS
+        Route::post('send', [\App\Http\Controllers\Api\Admin\SmsController::class, 'send']);
+        
+        // Statistics
+        Route::get('statistics', [\App\Http\Controllers\Api\Admin\SmsController::class, 'statistics']);
+    });
+
+    // Enhanced Reports (New - Phase 2.4)
+    Route::prefix('enhanced-reports')->group(function () {
+        Route::get('profit', [\App\Http\Controllers\Api\Admin\EnhancedReportController::class, 'profitReport']);
+        Route::get('cod-vs-paid', [\App\Http\Controllers\Api\Admin\EnhancedReportController::class, 'codVsPaidReport']);
+        Route::get('customer-growth', [\App\Http\Controllers\Api\Admin\EnhancedReportController::class, 'customerGrowthReport']);
+        Route::get('product-performance', [\App\Http\Controllers\Api\Admin\EnhancedReportController::class, 'productPerformanceReport']);
+        Route::get('order-source', [\App\Http\Controllers\Api\Admin\EnhancedReportController::class, 'orderSourceReport']);
+        Route::get('utm-campaign', [\App\Http\Controllers\Api\Admin\EnhancedReportController::class, 'utmCampaignReport']);
     });
 
     // Analytics (Admin)
