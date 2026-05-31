@@ -28,7 +28,7 @@ class CampaignService implements CampaignServiceInterface
             'target_type' => $data['target_type'] ?? 'all_customers',
             'target_criteria' => $data['target_criteria'] ?? null,
             'scheduled_at' => $data['scheduled_at'] ?? null,
-            'status' => $data['scheduled_at'] ? 'scheduled' : 'draft',
+            'status' => !empty($data['scheduled_at']) ? 'scheduled' : 'draft',
         ]);
     }
 

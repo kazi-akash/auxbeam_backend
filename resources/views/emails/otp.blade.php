@@ -67,11 +67,11 @@
         
         <p><strong>If you didn't request this, please ignore this email.</strong></p>
 
-        <p>Thank you,<br> The Shah Sports Team</p>
+        <p>Thank you,<br> The Auxbeam Bangladesh Team</p>
 
         <div class="footer">
             <small>This an auto generated email. Never reply to this email.</small> <br>
-            &copy; {{ date('Y') }} Shah Sports. All rights reserved.
+            &copy; {{ date('Y') }} Auxbeam Bangladesh. All rights reserved.
         </div>
     </div>
 </div>

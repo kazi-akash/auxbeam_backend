@@ -75,6 +75,9 @@ Route::get('orders/{orderNumber}', [\App\Http\Controllers\Api\OrderController::c
 // Visitor Popup (Public)
 Route::post('visitor-popup', [\App\Http\Controllers\Api\VisitorPopupController::class, 'store']);
 
+// Meta Pixel Public Config (no auth — used by frontend script injection)
+Route::get('meta-pixel/public-config', [\App\Http\Controllers\Api\Admin\MetaPixelController::class, 'publicConfig']);
+
 // Analytics Tracking (Public)
 Route::prefix('analytics')->group(function () {
     Route::post('track/page-view', [\App\Http\Controllers\Api\AnalyticsTrackingController::class, 'trackPageView']);
@@ -429,16 +432,17 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::prefix('customer-segments')->group(function () {
         Route::get('/', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'index']);
         Route::post('/', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'store']);
+        // Static routes MUST come before {id} wildcard routes to avoid being matched as an ID
+        Route::post('auto-assign-all', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'autoAssignAll']);
+        Route::get('vip/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'vipCustomers']);
+        Route::get('cod-risk/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'codRiskCustomers']);
+        Route::get('repeat/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'repeatCustomers']);
         Route::get('{id}', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'show']);
         Route::put('{id}', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'update']);
         Route::delete('{id}', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'destroy']);
         Route::get('{id}/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'customers']);
         Route::post('{id}/assign-customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'assignCustomers']);
         Route::post('{id}/remove-customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'removeCustomers']);
-        Route::post('auto-assign-all', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'autoAssignAll']);
-        Route::get('vip/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'vipCustomers']);
-        Route::get('cod-risk/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'codRiskCustomers']);
-        Route::get('repeat/customers', [\App\Http\Controllers\Api\Admin\CustomerSegmentController::class, 'repeatCustomers']);
     });
 
     // Customer Tags (New - Phase 2)
@@ -485,6 +489,16 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
         
         // Statistics
         Route::get('statistics', [\App\Http\Controllers\Api\Admin\SmsController::class, 'statistics']);
+    });
+
+    // Meta Pixel & Marketing (Phase 2.3)
+    Route::prefix('meta-pixel')->group(function () {
+        Route::get('configuration', [\App\Http\Controllers\Api\Admin\MetaPixelController::class, 'getConfiguration']);
+        Route::post('configuration', [\App\Http\Controllers\Api\Admin\MetaPixelController::class, 'saveConfiguration']);
+        Route::post('configuration/toggle', [\App\Http\Controllers\Api\Admin\MetaPixelController::class, 'toggleActive']);
+        Route::post('events', [\App\Http\Controllers\Api\Admin\MetaPixelController::class, 'logEvent']);
+        Route::get('events', [\App\Http\Controllers\Api\Admin\MetaPixelController::class, 'events']);
+        Route::get('statistics', [\App\Http\Controllers\Api\Admin\MetaPixelController::class, 'statistics']);
     });
 
     // Enhanced Reports (New - Phase 2.4)

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Welcome to Shah Sports</title>
+    <title>Welcome to Auxbeam Bangladesh</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -15,27 +15,27 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to Shah Sports!</h1>
+            <h1>Welcome to Auxbeam Bangladesh!</h1>
         </div>
-        
+
         <div class="content">
             <p>Hi {{ $user->name }},</p>
-            
-            <p>Welcome to Shah Sports! We're excited to have you as part of our community.</p>
-            
-            <p>At Shah Sports, you'll find the best sports equipment for all your needs - from cricket bats to footballs, fitness gear to outdoor equipment.</p>
-            
+
+            <p>Welcome to Auxbeam Bangladesh! We're excited to have you as part of our community.</p>
+
+            <p>At Auxbeam Bangladesh, you'll find premium automotive LED lighting — from off-road light bars and headlights to RGB rock lights and switch panels.</p>
+
             <p style="text-align: center; margin: 30px 0;">
                 <a href="{{ $shopUrl }}" class="btn">Start Shopping</a>
             </p>
-            
+
             <p>If you have any questions, feel free to reach out to our support team.</p>
-            
-            <p>Happy Shopping!<br>The Shah Sports Team</p>
+
+            <p>Happy Shopping!<br>The Auxbeam Bangladesh Team</p>
         </div>
-        
+
         <div class="footer">
-            <p>Shah Sports - Your Sports Equipment Destination</p>
+            <p>Auxbeam Bangladesh - Your Premium LED Lighting Destination</p>
         </div>
     </div>
 </body>

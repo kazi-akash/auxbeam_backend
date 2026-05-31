@@ -224,8 +224,8 @@
                             @if($item->productVariation)
                                 <br>
                                 <small style="color: #666;">
-                                    @foreach($item->productVariation->options as $option)
-                                        {{ $option->variation->name }}: {{ $option->value }}
+                                    @foreach($item->productVariation->variationValues as $vv)
+                                        {{ $vv->variationOption->variation->name ?? '' }}: {{ $vv->variationOption->value ?? '' }}
                                         @if(!$loop->last), @endif
                                     @endforeach
                                 </small>

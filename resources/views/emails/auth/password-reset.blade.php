@@ -15,7 +15,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Shah Sports</h1>
+            <h1>Auxbeam Bangladesh</h1>
             <p>Password Reset Request</p>
         </div>
         
@@ -32,7 +32,7 @@
         </div>
         
         <div class="footer">
-            <p>Shah Sports - Your Sports Equipment Destination</p>
+            <p>Auxbeam Bangladesh - Your Premium LED Lighting Destination</p>
             <p>If you're having trouble clicking the button, copy and paste this URL into your browser:</p>
             <p style="word-break: break-all;">{{ $resetUrl }}</p>
         </div>

@@ -43,10 +43,10 @@ class ReviewSeeder extends Seeder
         $reviewComments = [
             5 => [
                 'This is exactly what I was looking for. The quality is outstanding and delivery was super fast!',
-                'Exceeded my expectations. Will definitely buy from Shah Sports again.',
-                'Premium quality product. Worth every taka spent.',
-                'My son loves this! Perfect for his cricket practice.',
-                'Authentic product with great build quality. Highly recommend Shah Sports!',
+                'Exceeded my expectations. Will definitely buy from Auxbeam Bangladesh again.',
+                'Premium quality product. Fits perfectly and the beam is incredibly bright.',
+                'The light bar is exactly as described. Waterproof and very well built.',
+                'Authentic Auxbeam product with great build quality. Highly recommend!',
             ],
             4 => [
                 'Good product overall. Minor issues with packaging but product is fine.',

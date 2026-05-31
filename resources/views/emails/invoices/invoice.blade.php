@@ -15,7 +15,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Shah Sports</h1>
+            <h1>Auxbeam</h1>
             <p>Invoice</p>
         </div>
         
@@ -29,11 +29,11 @@
                 <p><strong>Total Amount:</strong> ৳{{ number_format($invoice->total_amount, 2) }}</p>
             </div>
             
-            <p>Thank you for shopping with Shah Sports!</p>
+            <p>Thank you for shopping with Auxbeam!</p>
         </div>
         
         <div class="footer">
-            <p>Shah Sports - Your Sports Equipment Destination</p>
+            <p>Auxbeam - Your Automotive LED Lighting Destination</p>
         </div>
     </div>
 </body>

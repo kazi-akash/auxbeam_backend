@@ -250,8 +250,8 @@ class PaymentService implements PaymentServiceInterface
             'cus_city' => $order->shippingAddress?->city ?? 'Dhaka',
             'cus_country' => 'Bangladesh',
             'shipping_method' => 'NO',
-            'product_name' => 'Shah Sports Order #' . $order->order_number,
-            'product_category' => 'Sports Equipment',
+            'product_name' => 'Auxbeam Bangladesh Order #' . $order->order_number,
+            'product_category' => 'Automotive LED Lighting',
             'product_profile' => 'physical-goods',
         ];
 

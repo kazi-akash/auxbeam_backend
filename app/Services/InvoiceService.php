@@ -154,10 +154,10 @@ class InvoiceService implements InvoiceServiceInterface
             'invoice' => $invoice,
             'order' => $order,
             'company' => [
-                'name' => 'Shah Sports',
+                'name' => 'Auxbeam',
                 'address' => config('app.company_address', 'Dhaka, Bangladesh'),
                 'phone' => config('app.company_phone', ''),
-                'email' => config('app.company_email', 'info@shahsports.com'),
+                'email' => config('app.company_email', 'info@auxbeam.com'),
             ],
         ];
 

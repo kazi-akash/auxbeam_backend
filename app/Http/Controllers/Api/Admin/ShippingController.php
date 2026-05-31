@@ -44,7 +44,7 @@ class ShippingController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'method' => 'required|in:shah_sports_team,pathao_courier',
+            'method' => 'required|in:auxbeam_bd,standard_shipping,international_shipping',
             'shipping_class_id' => 'nullable|exists:shipping_classes,id',
             'zone' => 'nullable|string|max:100',
             'base_cost' => 'required|numeric|min:0',
@@ -111,7 +111,7 @@ class ShippingController extends Controller
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
-            'method' => 'sometimes|in:shah_sports_team,pathao_courier',
+            'method' => 'sometimes|in:auxbeam_bd,standard_shipping,international_shipping',
             'shipping_class_id' => 'nullable|exists:shipping_classes,id',
             'zone' => 'nullable|string|max:100',
             'base_cost' => 'sometimes|numeric|min:0',

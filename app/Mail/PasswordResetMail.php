@@ -20,7 +20,7 @@ class PasswordResetMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Reset Your Password - Shah Sports',
+            subject: 'Reset Your Password - Auxbeam Bangladesh',
         );
     }
 

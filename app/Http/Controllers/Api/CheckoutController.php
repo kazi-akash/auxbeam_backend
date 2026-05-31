@@ -79,7 +79,7 @@ class CheckoutController extends Controller
             'billing_address' => 'nullable|array',
             'use_shipping_for_billing' => 'nullable|boolean',
             // Other fields
-            'shipping_method' => 'required|in:shah_sports_team,pathao_courier,standard',
+            'shipping_method' => 'required|in:auxbeam_bd,standard_shipping,international_shipping',
             'coupon_code' => 'nullable|string',
             'payment_method' => 'required|in:ssl_commerz,bkash,nagad,cod,cash_on_delivery',
             'notes' => 'nullable|string|max:500',
@@ -169,7 +169,7 @@ class CheckoutController extends Controller
             'items.*.price' => 'required|numeric|min:0',
             'items.*.is_preorder' => 'nullable|boolean',
             'shipping_address_id' => 'nullable|exists:addresses,id',
-            'shipping_method' => 'nullable|in:shah_sports_team,pathao_courier',
+            'shipping_method' => 'nullable|in:auxbeam_bd,standard_shipping,international_shipping',
             'coupon_code' => 'nullable|string',
             'is_preorder' => 'nullable|boolean',
             'pay_deposit_only' => 'nullable|boolean',

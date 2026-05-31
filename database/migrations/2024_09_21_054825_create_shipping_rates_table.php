@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->unsignedBigInteger('shipping_class_id')->nullable();
-            $table->enum('method', ['shah_sports_team', 'pathao_courier']);
-            $table->string('country', 100)->default('Bangladesh');
+            $table->enum('method', ['auxbeam_bd', 'standard_shipping', 'international_shipping']);
+            $table->string('country', 100)->nullable();
             $table->string('delivery_time', 100)->nullable();
             $table->decimal('free_shipping_min_order', 10, 2)->default(0);
             $table->decimal('base_cost', 10, 2)->default(0);

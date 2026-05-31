@@ -59,8 +59,8 @@ class CampaignController extends Controller
             'name' => 'required|string|max:255',
             'subject' => 'required|string|max:255',
             'content' => 'required|string',
-            'campaign_type' => 'required|in:promotional,newsletter,announcement',
-            'target_type' => 'required|in:all,segment,custom',
+            'campaign_type' => 'required|in:promotional,abandoned_cart,order_update,newsletter',
+            'target_type' => 'required|in:all_customers,specific_customers,customer_group',
             'target_criteria' => 'nullable|array',
             'scheduled_at' => 'nullable|date|after:now',
         ]);
@@ -121,8 +121,8 @@ class CampaignController extends Controller
             'name' => 'sometimes|string|max:255',
             'subject' => 'sometimes|string|max:255',
             'content' => 'sometimes|string',
-            'campaign_type' => 'sometimes|in:promotional,newsletter,announcement',
-            'target_type' => 'sometimes|in:all,segment,custom',
+            'campaign_type' => 'sometimes|in:promotional,abandoned_cart,order_update,newsletter',
+            'target_type' => 'sometimes|in:all_customers,specific_customers,customer_group',
             'target_criteria' => 'nullable|array',
             'scheduled_at' => 'nullable|date|after:now',
         ]);
@@ -224,20 +224,28 @@ class CampaignController extends Controller
     public function previewRecipients(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'target_type' => 'required|in:all,segment,custom',
+            'target_type' => 'required|in:all_customers,specific_customers,customer_group',
             'target_criteria' => 'nullable|array',
         ]);
 
-        $recipients = $this->campaignService->getTargetCustomers(
-            $validated['target_type'],
-            $validated['target_criteria'] ?? []
-        );
+        // Build a temporary (unsaved) Campaign model so the service method
+        // receives the correct type without hitting the database.
+        $tempCampaign = new Campaign();
+        $tempCampaign->target_type = $validated['target_type'];
+        $tempCampaign->target_criteria = $validated['target_criteria'] ?? null;
+
+        $recipients = $this->campaignService->getTargetCustomers($tempCampaign);
 
         return response()->json([
             'success' => true,
             'data' => [
                 'count' => $recipients->count(),
-                'preview' => $recipients->take(20),
+                'preview' => $recipients->take(20)->map(fn($u) => [
+                    'id'         => $u->id,
+                    'email'      => $u->email,
+                    'first_name' => $u->first_name,
+                    'last_name'  => $u->last_name,
+                ]),
             ],
         ]);
     }

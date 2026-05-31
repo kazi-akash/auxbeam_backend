@@ -18,9 +18,9 @@ class ShippingService implements ShippingServiceInterface
     /**
      * Available shipping methods.
      */
-    public const METHOD_SHAH_SPORTS_TEAM = 'shah_sports_team';
-    public const METHOD_PATHAO_COURIER = 'pathao_courier';
-    public const METHOD_STANDARD = 'standard';
+    public const METHOD_AUXBEAM_BD = 'auxbeam_bd';
+    public const METHOD_STANDARD_SHIPPING = 'standard_shipping';
+    public const METHOD_INTERNATIONAL_SHIPPING = 'international_shipping';
 
     /**
      * Weight thresholds for method recommendations.
@@ -132,30 +132,30 @@ class ShippingService implements ShippingServiceInterface
         $totalWeight = $this->calculateTotalWeight($items);
         $hasLargeItems = $this->hasLargeItems($items);
 
-        // Shah Sports Team - available for heavy/large items and local delivery
-        $shahSportsRate = ShippingRate::where('method', self::METHOD_SHAH_SPORTS_TEAM)
+        // Auxbeam Bangladesh - own delivery for local BD orders
+        $auxbeamBdRate = ShippingRate::where('method', self::METHOD_AUXBEAM_BD)
             ->where('is_active', true)
             ->first();
 
-        if ($shahSportsRate) {
+        if ($auxbeamBdRate) {
             $methods[] = [
-                'code' => self::METHOD_SHAH_SPORTS_TEAM,
-                'name' => 'Shah Sports Team Delivery',
-                'description' => 'Our own delivery team for heavy and large items',
+                'code' => self::METHOD_AUXBEAM_BD,
+                'name' => 'Auxbeam Bangladesh Delivery',
+                'description' => 'Our own delivery team for orders within Bangladesh',
                 'recommended' => $totalWeight > self::HEAVY_WEIGHT_THRESHOLD || $hasLargeItems,
             ];
         }
 
-        // Pathao Courier - available for standard items
-        $pathaoRate = ShippingRate::where('method', self::METHOD_PATHAO_COURIER)
+        // Standard Shipping - available for all items
+        $standardRate = ShippingRate::where('method', self::METHOD_STANDARD_SHIPPING)
             ->where('is_active', true)
             ->first();
 
-        if ($pathaoRate) {
+        if ($standardRate) {
             $methods[] = [
-                'code' => self::METHOD_PATHAO_COURIER,
-                'name' => 'Pathao Courier',
-                'description' => 'Fast and reliable courier service for standard deliveries',
+                'code' => self::METHOD_STANDARD_SHIPPING,
+                'name' => 'Standard Shipping',
+                'description' => 'Fast and reliable shipping for standard deliveries',
                 'recommended' => $totalWeight <= self::HEAVY_WEIGHT_THRESHOLD && !$hasLargeItems,
             ];
         }
@@ -234,13 +234,13 @@ class ShippingService implements ShippingServiceInterface
         $totalWeight = $this->calculateTotalWeight($items);
         $hasLargeItems = $this->hasLargeItems($items);
 
-        // Shah Sports Team for heavy (>20kg) or large items
+        // Auxbeam Bangladesh for heavy (>20kg) or large items
         if ($totalWeight > 20 || $hasLargeItems) {
-            return self::METHOD_SHAH_SPORTS_TEAM;
+            return self::METHOD_AUXBEAM_BD;
         }
 
-        // Default to Pathao for regular items
-        return self::METHOD_PATHAO_COURIER;
+        // Default to standard shipping for regular items
+        return self::METHOD_STANDARD_SHIPPING;
     }
 
     /**

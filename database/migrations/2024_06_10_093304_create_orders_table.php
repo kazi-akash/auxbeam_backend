@@ -24,7 +24,7 @@ return new class extends Migration
             $table->decimal('tax_amount', 10, 2)->default(0);
             $table->decimal('total_amount', 10, 2);
             $table->unsignedBigInteger('coupon_id')->nullable();
-            $table->enum('shipping_method', ['shah_sports_team', 'pathao_courier', 'none'])->nullable()->default('none');
+            $table->enum('shipping_method', ['auxbeam_bd', 'standard_shipping', 'international_shipping', 'none'])->nullable()->default('none');
             $table->string('tracking_number')->nullable();
             $table->enum('status', [
                 'pending',

@@ -13,151 +13,246 @@ class ProductVariationSeeder extends Seeder
 {
     public function run(): void
     {
-        $shoeSizeVariation = Variation::where('slug', 'shoe-size-eu')->first();
-        $batHandleVariation = Variation::where('slug', 'bat-handle')->first();
-        $protectiveGearVariation = Variation::where('slug', 'protective-gear-size')->first();
-        $sizeVariation = Variation::where('slug', 'size')->first();
-        $gripSizeVariation = Variation::where('slug', 'grip-size')->first();
+        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        ProductVariation::truncate();
+        VariationValue::truncate();
+        \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        // Add size variations to football boots
-        $footballBoots = Product::where('sku', 'like', 'NK-MS9%')
-            ->orWhere('sku', 'like', 'AD-PE1%')
-            ->get();
+        // ---------------------------------------------------------------
+        // Ensure required Variation types exist
+        // ---------------------------------------------------------------
+        $sizeVariation = $this->ensureVariation('Size', 'size');
+        $bundleVariation = $this->ensureVariation('Bundle', 'bundle');
+        $colorVariation = $this->ensureVariation('Housing Color', 'housing-color');
+        $quantityVariation = $this->ensureVariation('Quantity', 'quantity');
 
-        if ($shoeSizeVariation) {
-            $bootSizeOptions = VariationOption::where('variation_id', $shoeSizeVariation->id)
-                ->whereIn('value', ['39', '40', '41', '42', '43', '44', '45'])
-                ->get();
+        // ---------------------------------------------------------------
+        // 6 Modes Series Light Bars — Combo size+shape variants
+        // Represented via the Size variation with descriptive labels
+        // ---------------------------------------------------------------
+        $this->applyVariants(
+            skus: ['ZD000655', 'ZD000654', 'ZD000653', 'ZD000652', 'ZD000650'],
+            variation: $sizeVariation,
+            optionMap: [
+                'ZD000655' => ['label' => '22" Straight — 120W', 'price_modifier' => 0,     'default' => false],
+                'ZD000654' => ['label' => '30" Straight — 180W', 'price_modifier' => 30.99,  'default' => false],
+                'ZD000653' => ['label' => '42" Curved — 240W',   'price_modifier' => 50.99,  'default' => false],
+                'ZD000652' => ['label' => '50" Curved — 288W',   'price_modifier' => 70.99,  'default' => false],
+                'ZD000650' => ['label' => '3" Straight — 72W',   'price_modifier' => -39.01, 'default' => false],
+            ]
+        );
 
-            foreach ($footballBoots as $boot) {
-                foreach ($bootSizeOptions as $index => $option) {
-                    $variation = ProductVariation::create([
-                        'product_id' => $boot->id,
-                        'sku' => $boot->sku . '-' . $option->value,
-                        'price' => $boot->price,
-                        'quantity' => rand(3, 10),
-                        'is_default' => $option->value === '41',
-                    ]);
+        // ---------------------------------------------------------------
+        // Starlight Flow Headlights — Housing Color variants (Silver / Black)
+        // ---------------------------------------------------------------
+        $silverProduct = Product::where('sku', 'QP010571')->first();
+        $blackProduct  = Product::where('sku', 'QP010907')->first();
 
-                    VariationValue::create([
-                        'product_variation_id' => $variation->id,
-                        'variation_option_id' => $option->id,
-                    ]);
-                }
-                $boot->update(['quantity' => 0]);
+        foreach ([
+            ['product' => $silverProduct, 'color' => 'Silver', 'price' => 185.99, 'default' => true],
+            ['product' => $blackProduct,  'color' => 'Black',  'price' => 199.99, 'default' => false],
+        ] as $variant) {
+            if (!$variant['product']) continue;
+            $option = $this->ensureOption($colorVariation, $variant['color']);
+            $pv = ProductVariation::create([
+                'product_id' => $variant['product']->id,
+                'sku'        => $variant['product']->sku . '-' . strtolower($variant['color']),
+                'price'      => $variant['price'],
+                'quantity'   => $variant['product']->quantity,
+                'is_default' => $variant['default'],
+            ]);
+            VariationValue::create([
+                'product_variation_id' => $pv->id,
+                'variation_option_id'  => $option->id,
+            ]);
+            $variant['product']->update(['quantity' => 0]);
+        }
+
+        // ---------------------------------------------------------------
+        // RGB Rock Lights — Quantity variants (4pcs / 8pcs / 12pcs)
+        // ---------------------------------------------------------------
+        $rockLightVariants = [
+            ['sku' => 'QP002085', 'label' => '4pcs', 'price' => 62.99,  'qty' => 80,  'default' => true],
+            ['sku' => 'QP002314', 'label' => '8pcs', 'price' => 91.99,  'qty' => 65,  'default' => false],
+            ['sku' => 'QP009337', 'label' => '12pcs','price' => 115.99, 'qty' => 50,  'default' => false],
+        ];
+
+        foreach ($rockLightVariants as $v) {
+            $product = Product::where('sku', $v['sku'])->first();
+            if (!$product) continue;
+            $option = $this->ensureOption($quantityVariation, $v['label']);
+            $pv = ProductVariation::create([
+                'product_id' => $product->id,
+                'sku'        => $product->sku . '-' . strtolower(str_replace('pcs', 'pc', $v['label'])),
+                'price'      => $v['price'],
+                'quantity'   => $v['qty'],
+                'is_default' => $v['default'],
+            ]);
+            VariationValue::create([
+                'product_variation_id' => $pv->id,
+                'variation_option_id'  => $option->id,
+            ]);
+            $product->update(['quantity' => 0]);
+        }
+
+        // ---------------------------------------------------------------
+        // Vibrant Series Rock Lights — Size + Quantity variants
+        // ---------------------------------------------------------------
+        $vibrantVariants = [
+            ['sku' => 'QP011601', 'label' => 'Large — 4pcs', 'price' => 109.99, 'qty' => 45, 'default' => true],
+            ['sku' => 'QP011600', 'label' => 'Large — 8pcs', 'price' => 165.99, 'qty' => 35, 'default' => false],
+        ];
+
+        foreach ($vibrantVariants as $v) {
+            $product = Product::where('sku', $v['sku'])->first();
+            if (!$product) continue;
+            $option = $this->ensureOption($sizeVariation, $v['label']);
+            $pv = ProductVariation::create([
+                'product_id' => $product->id,
+                'sku'        => $product->sku . '-' . \Illuminate\Support\Str::slug($v['label']),
+                'price'      => $v['price'],
+                'quantity'   => $v['qty'],
+                'is_default' => $v['default'],
+            ]);
+            VariationValue::create([
+                'product_variation_id' => $pv->id,
+                'variation_option_id'  => $option->id,
+            ]);
+            $product->update(['quantity' => 0]);
+        }
+
+        // ---------------------------------------------------------------
+        // AR Series Switch Panels — Bundle variants (panel + accessories)
+        // ---------------------------------------------------------------
+        $arBundleVariants = [
+            // 6-Gang bundles
+            ['product_sku' => 'QP009889', 'label' => '6 Gang — Panel Only',              'price' => 239.99, 'sku_suffix' => 'panel-only',    'default' => true],
+            ['product_sku' => 'QP009889', 'label' => '6 Gang + 3.94FT Extension Cable',  'price' => 255.99, 'sku_suffix' => 'cable-394ft',   'default' => false],
+            ['product_sku' => 'QP009889', 'label' => '6 Gang + 20FT Extension Cable',    'price' => 265.99, 'sku_suffix' => 'cable-20ft',    'default' => false],
+            // 8-Gang bundles
+            ['product_sku' => 'QP010785', 'label' => '8 Gang — Panel Only',              'price' => 269.99, 'sku_suffix' => 'panel-only',    'default' => true],
+            ['product_sku' => 'QP010785', 'label' => '8 Gang + 3.94FT Extension Cable',  'price' => 285.99, 'sku_suffix' => 'cable-394ft',   'default' => false],
+            ['product_sku' => 'QP010785', 'label' => '8 Gang + 20FT Extension Cable',    'price' => 299.99, 'sku_suffix' => 'cable-20ft',    'default' => false],
+        ];
+
+        foreach ($arBundleVariants as $v) {
+            $product = Product::where('sku', $v['product_sku'])->first();
+            if (!$product) continue;
+            $option = $this->ensureOption($bundleVariation, $v['label']);
+            $pv = ProductVariation::create([
+                'product_id' => $product->id,
+                'sku'        => $v['product_sku'] . '-' . $v['sku_suffix'],
+                'price'      => $v['price'],
+                'quantity'   => $v['default'] ? $product->quantity : rand(10, 25),
+                'is_default' => $v['default'],
+            ]);
+            VariationValue::create([
+                'product_variation_id' => $pv->id,
+                'variation_option_id'  => $option->id,
+            ]);
+            if ($v['default']) {
+                $product->update(['quantity' => 0]);
             }
         }
 
-        // Add size variations to cricket bats (Short Handle, Long Handle)
-        $cricketBats = Product::whereHas('category', function ($q) {
-            $q->where('slug', 'cricket-bats');
-        })->get();
+        // ---------------------------------------------------------------
+        // KS-80 Switch Panel — Bundle variants
+        // ---------------------------------------------------------------
+        $ks80Variants = [
+            ['label' => 'KS-80 Panel Only',               'price' => 299.99, 'sku' => 'QP012186',    'default' => true],
+            ['label' => 'KS-80 + Remote Controller',      'price' => 334.99, 'sku' => 'GP00013970',  'default' => false],
+            ['label' => 'KS-80 + 3.94FT Extension Cable', 'price' => 304.99, 'sku' => 'GP00013971',  'default' => false],
+            ['label' => 'KS-80 + 20FT Extension Cable',   'price' => 314.99, 'sku' => 'GP00013972',  'default' => false],
+        ];
 
-        if ($batHandleVariation) {
-            $batHandleOptions = VariationOption::where('variation_id', $batHandleVariation->id)->get();
-
-            foreach ($cricketBats as $bat) {
-                foreach ($batHandleOptions as $option) {
-                    $variation = ProductVariation::create([
-                        'product_id' => $bat->id,
-                        'sku' => $bat->sku . '-' . $option->value,
-                        'price' => $bat->price,
-                        'quantity' => rand(5, 15),
-                        'is_default' => $option->value === 'SH',
-                    ]);
-
-                    VariationValue::create([
-                        'product_variation_id' => $variation->id,
-                        'variation_option_id' => $option->id,
-                    ]);
-                }
-                $bat->update(['quantity' => 0]);
+        $ks80Product = Product::where('sku', 'QP012186')->first();
+        if ($ks80Product) {
+            foreach ($ks80Variants as $v) {
+                $option = $this->ensureOption($bundleVariation, $v['label']);
+                $pv = ProductVariation::create([
+                    'product_id' => $ks80Product->id,
+                    'sku'        => $v['sku'],
+                    'price'      => $v['price'],
+                    'quantity'   => $v['default'] ? $ks80Product->quantity : rand(10, 20),
+                    'is_default' => $v['default'],
+                ]);
+                VariationValue::create([
+                    'product_variation_id' => $pv->id,
+                    'variation_option_id'  => $option->id,
+                ]);
             }
+            $ks80Product->update(['quantity' => 0]);
         }
 
-        // Add size variations to batting pads and gloves
-        $protectiveGear = Product::whereHas('category', function ($q) {
-            $q->whereIn('slug', ['batting-pads', 'batting-gloves']);
-        })->get();
+        // ---------------------------------------------------------------
+        // RGB Whip Lights — Size variants
+        // ---------------------------------------------------------------
+        $whipVariants = [
+            ['sku' => 'QP010354', 'label' => '2.8FT (31mm×850mm)',  'price' => 189.99, 'default' => true],
+            ['sku' => 'QP010355', 'label' => '3.8FT (31mm×1150mm)', 'price' => 229.99, 'default' => false],
+        ];
 
-        if ($protectiveGearVariation) {
-            $gearSizeOptions = VariationOption::where('variation_id', $protectiveGearVariation->id)->get();
-
-            foreach ($protectiveGear as $gear) {
-                foreach ($gearSizeOptions as $option) {
-                    $variation = ProductVariation::create([
-                        'product_id' => $gear->id,
-                        'sku' => $gear->sku . '-' . $option->value,
-                        'price' => $gear->price,
-                        'quantity' => rand(5, 12),
-                        'is_default' => $option->value === 'MD',
-                    ]);
-
-                    VariationValue::create([
-                        'product_variation_id' => $variation->id,
-                        'variation_option_id' => $option->id,
-                    ]);
-                }
-                $gear->update(['quantity' => 0]);
-            }
+        foreach ($whipVariants as $v) {
+            $product = Product::where('sku', $v['sku'])->first();
+            if (!$product) continue;
+            $option = $this->ensureOption($sizeVariation, $v['label']);
+            $pv = ProductVariation::create([
+                'product_id' => $product->id,
+                'sku'        => $product->sku . '-pair',
+                'price'      => $v['price'],
+                'quantity'   => $product->quantity,
+                'is_default' => $v['default'],
+            ]);
+            VariationValue::create([
+                'product_variation_id' => $pv->id,
+                'variation_option_id'  => $option->id,
+            ]);
+            $product->update(['quantity' => 0]);
         }
 
-        // Add size variations to swimwear
-        $swimwear = Product::whereHas('category', function ($q) {
-            $q->where('slug', 'swimwear');
-        })->get();
+        $this->command->info('Product variations seeded successfully!');
+    }
 
-        if ($sizeVariation) {
-            $swimSizeOptions = VariationOption::where('variation_id', $sizeVariation->id)
-                ->whereIn('value', ['XS', 'S', 'M', 'L', 'XL', 'XXL'])
-                ->get();
+    private function ensureVariation(string $name, string $slug): Variation
+    {
+        return Variation::firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $name]
+        );
+    }
 
-            foreach ($swimwear as $item) {
-                foreach ($swimSizeOptions as $option) {
-                    $variation = ProductVariation::create([
-                        'product_id' => $item->id,
-                        'sku' => $item->sku . '-' . $option->value,
-                        'price' => $item->price,
-                        'quantity' => rand(5, 15),
-                        'is_default' => $option->value === 'M',
-                    ]);
+    private function ensureOption(Variation $variation, string $value): VariationOption
+    {
+        return VariationOption::firstOrCreate(
+            ['variation_id' => $variation->id, 'value' => $value],
+            ['label' => $value, 'sort_order' => 0]
+        );
+    }
 
-                    VariationValue::create([
-                        'product_variation_id' => $variation->id,
-                        'variation_option_id' => $option->id,
-                    ]);
-                }
-                $item->update(['quantity' => 0]);
-            }
-        }
+    private function applyVariants(array $skus, Variation $variation, array $optionMap): void
+    {
+        foreach ($skus as $sku) {
+            $product = Product::where('sku', $sku)->first();
+            if (!$product || !isset($optionMap[$sku])) continue;
 
-        // Add grip size variations to tennis rackets
-        $tennisRackets = Product::whereHas('category', function ($q) {
-            $q->where('slug', 'tennis-rackets');
-        })->get();
+            $map    = $optionMap[$sku];
+            $option = $this->ensureOption($variation, $map['label']);
+            $price  = $product->price + ($map['price_modifier'] ?? 0);
 
-        if ($gripSizeVariation) {
-            $gripOptions = VariationOption::where('variation_id', $gripSizeVariation->id)
-                ->whereIn('value', ['G2', 'G3', 'G4'])
-                ->get();
+            $pv = ProductVariation::create([
+                'product_id' => $product->id,
+                'sku'        => $sku . '-var',
+                'price'      => round($price, 2),
+                'quantity'   => $product->quantity,
+                'is_default' => $map['default'] ?? false,
+            ]);
 
-            foreach ($tennisRackets as $racket) {
-                foreach ($gripOptions as $option) {
-                    $variation = ProductVariation::create([
-                        'product_id' => $racket->id,
-                        'sku' => $racket->sku . '-' . $option->value,
-                        'price' => $racket->price,
-                        'quantity' => rand(3, 8),
-                        'is_default' => $option->value === 'G3',
-                    ]);
+            VariationValue::create([
+                'product_variation_id' => $pv->id,
+                'variation_option_id'  => $option->id,
+            ]);
 
-                    VariationValue::create([
-                        'product_variation_id' => $variation->id,
-                        'variation_option_id' => $option->id,
-                    ]);
-                }
-                $racket->update(['quantity' => 0]);
-            }
+            $product->update(['quantity' => 0]);
         }
     }
 }

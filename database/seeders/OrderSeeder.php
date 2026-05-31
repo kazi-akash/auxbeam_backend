@@ -15,25 +15,35 @@ class OrderSeeder extends Seeder
 {
     public function run(): void
     {
-        $customers = User::where('user_type', 'customer')->get();
+        $customers = User::with('addresses')->where('user_type', 'customer')->get();
         $products = Product::with('variations')->get();
 
-        $statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+        // Guard: skip entirely if prerequisite data is missing
+        if ($customers->isEmpty() || $products->isEmpty()) {
+            $this->command->warn('OrderSeeder skipped: no customers or products found.');
+            return;
+        }
+
+        $statuses = ['pending', 'confirmed', 'processing', 'shipped', 'complete', 'on_hold', 'cancelled'];
         $paymentStatuses = ['pending', 'paid', 'failed'];
         $paymentMethods = ['ssl_commerz', 'bkash', 'nagad', 'manual'];
-        $shippingMethods = ['shah_sports_team', 'pathao_courier'];
+        $shippingMethods = ['auxbeam_bd', 'standard_shipping', 'international_shipping'];
+
+        // Only use customers that actually have an address
+        $customersWithAddress = $customers->filter(fn($c) => $c->addresses->isNotEmpty());
+
+        if ($customersWithAddress->isEmpty()) {
+            $this->command->warn('OrderSeeder skipped: no customers with addresses found.');
+            return;
+        }
 
         // Create 15 sample orders
         for ($i = 0; $i < 15; $i++) {
-            $customer = $customers->random();
+            $customer = $customersWithAddress->random();
             $address = $customer->addresses->first();
-            
-            if (!$address) {
-                continue;
-            }
 
             $status = $statuses[array_rand($statuses)];
-            $paymentStatus = $status === 'delivered' ? 'paid' : $paymentStatuses[array_rand($paymentStatuses)];
+            $paymentStatus = $status === 'complete' ? 'paid' : $paymentStatuses[array_rand($paymentStatuses)];
             $orderType = $i < 12 ? 'online' : 'in_store'; // 12 online, 3 POS orders
 
             $order = Order::create([
@@ -47,7 +57,7 @@ class OrderSeeder extends Seeder
                 'tax_amount' => 0,
                 'total_amount' => 0,
                 'shipping_method' => $shippingMethods[array_rand($shippingMethods)],
-                'tracking_number' => $status === 'shipped' || $status === 'delivered' ? 'TRK' . strtoupper(substr(md5(rand()), 0, 10)) : null,
+                'tracking_number' => in_array($status, ['shipped', 'complete']) ? 'TRK' . strtoupper(substr(md5(rand()), 0, 10)) : null,
                 'status' => $status,
                 'payment_status' => $paymentStatus,
                 'notes' => $i % 5 === 0 ? 'Please deliver before 6 PM' : null,
@@ -58,7 +68,7 @@ class OrderSeeder extends Seeder
             ]);
 
             // Add 1-4 items to each order
-            $itemCount = rand(1, 4);
+            $itemCount = rand(1, min(4, $products->count()));
             $subtotal = 0;
             $orderProducts = $products->random($itemCount);
 

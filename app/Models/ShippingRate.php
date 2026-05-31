@@ -81,19 +81,19 @@ class ShippingRate extends Model
     }
 
     /**
-     * Check if this is Shah Sports Team delivery.
+     * Check if this is Auxbeam Bangladesh delivery.
      */
-    public function isShahSportsTeam(): bool
+    public function isAuxbeamBd(): bool
     {
-        return $this->method === 'shah_sports_team';
+        return $this->method === 'auxbeam_bd';
     }
 
     /**
-     * Check if this is Pathao Courier.
+     * Check if this is standard shipping.
      */
-    public function isPathaoCourier(): bool
+    public function isStandardShipping(): bool
     {
-        return $this->method === 'pathao_courier';
+        return $this->method === 'standard_shipping';
     }
 
     /**

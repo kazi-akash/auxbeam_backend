@@ -10,67 +10,84 @@ class ShippingRateSeeder extends Seeder
 {
     public function run(): void
     {
+        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        ShippingRate::truncate();
+        \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
         $standardClass = ShippingClass::where('slug', 'standard')->first();
-        $heavyClass = ShippingClass::where('slug', 'heavy-items')->first();
+        $lightBarClass = ShippingClass::where('slug', 'light-bar')->first();
+        $fragileClass = ShippingClass::where('slug', 'fragile')->first();
         $oversizedClass = ShippingClass::where('slug', 'oversized')->first();
 
-        // Shah Sports Team Delivery - Standard
+        // US Standard Shipping — free over $19.99
         ShippingRate::create([
-            'name' => 'Shah Sports Team - Standard Delivery',
+            'name' => 'US Standard Shipping',
             'shipping_class_id' => $standardClass?->id,
-            'method' => 'shah_sports_team',
-            'country' => 'BD',
-            'delivery_time' => '2-3 business days',
-            'free_shipping_min_order' => 5000.00,
-            'base_cost' => 100.00,
-            'is_active' => true,
-        ]);
-
-        // Shah Sports Team Delivery - Heavy Items
-        ShippingRate::create([
-            'name' => 'Shah Sports Team - Heavy Items',
-            'shipping_class_id' => $heavyClass?->id,
-            'method' => 'shah_sports_team',
-            'country' => 'BD',
+            'method' => 'standard_shipping',
+            'country' => 'US',
             'delivery_time' => '3-5 business days',
-            'free_shipping_min_order' => 10000.00,
-            'base_cost' => 250.00,
+            'free_shipping_min_order' => 19.99,
+            'base_cost' => 5.99,
             'is_active' => true,
         ]);
 
-        // Shah Sports Team Delivery - Oversized
+        // US Light Bar Shipping — free over $19.99
         ShippingRate::create([
-            'name' => 'Shah Sports Team - Oversized Items',
+            'name' => 'US Light Bar Shipping',
+            'shipping_class_id' => $lightBarClass?->id,
+            'method' => 'standard_shipping',
+            'country' => 'US',
+            'delivery_time' => '3-5 business days',
+            'free_shipping_min_order' => 19.99,
+            'base_cost' => 9.99,
+            'is_active' => true,
+        ]);
+
+        // US Fragile / Headlight Shipping
+        ShippingRate::create([
+            'name' => 'US Fragile Item Shipping',
+            'shipping_class_id' => $fragileClass?->id,
+            'method' => 'standard_shipping',
+            'country' => 'US',
+            'delivery_time' => '3-5 business days',
+            'free_shipping_min_order' => 19.99,
+            'base_cost' => 7.99,
+            'is_active' => true,
+        ]);
+
+        // US Oversized Shipping (large 40"+ light bars)
+        ShippingRate::create([
+            'name' => 'US Oversized Shipping',
             'shipping_class_id' => $oversizedClass?->id,
-            'method' => 'shah_sports_team',
-            'country' => 'BD',
+            'method' => 'standard_shipping',
+            'country' => 'US',
             'delivery_time' => '3-5 business days',
-            'free_shipping_min_order' => 15000.00,
-            'base_cost' => 350.00,
+            'free_shipping_min_order' => 19.99,
+            'base_cost' => 14.99,
             'is_active' => true,
         ]);
 
-        // Pathao Courier - Standard
+        // International Standard Shipping
         ShippingRate::create([
-            'name' => 'Pathao Courier - Standard',
+            'name' => 'International Standard Shipping',
             'shipping_class_id' => $standardClass?->id,
-            'method' => 'pathao_courier',
-            'country' => 'BD',
-            'delivery_time' => '3-5 business days',
-            'free_shipping_min_order' => 8000.00,
-            'base_cost' => 80.00,
+            'method' => 'international_shipping',
+            'country' => 'Worldwide',
+            'delivery_time' => '8-15 business days',
+            'free_shipping_min_order' => 0,
+            'base_cost' => 19.99,
             'is_active' => true,
         ]);
 
-        // Pathao Courier - Heavy Items
+        // International Light Bar Shipping
         ShippingRate::create([
-            'name' => 'Pathao Courier - Heavy Items',
-            'shipping_class_id' => $heavyClass?->id,
-            'method' => 'pathao_courier',
-            'country' => 'BD',
-            'delivery_time' => '5-7 business days',
-            'free_shipping_min_order' => 15000.00,
-            'base_cost' => 200.00,
+            'name' => 'International Light Bar Shipping',
+            'shipping_class_id' => $lightBarClass?->id,
+            'method' => 'international_shipping',
+            'country' => 'Worldwide',
+            'delivery_time' => '8-15 business days',
+            'free_shipping_min_order' => 0,
+            'base_cost' => 29.99,
             'is_active' => true,
         ]);
     }

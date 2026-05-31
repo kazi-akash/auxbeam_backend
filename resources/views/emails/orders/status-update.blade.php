@@ -20,7 +20,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Shah Sports</h1>
+            <h1>Auxbeam Bangladesh</h1>
             <p>Order Status Update</p>
         </div>
         
@@ -50,7 +50,7 @@
         </div>
         
         <div class="footer">
-            <p>Shah Sports - Your Sports Equipment Destination</p>
+            <p>Auxbeam Bangladesh - Your Premium LED Lighting Destination</p>
         </div>
     </div>
 </body>

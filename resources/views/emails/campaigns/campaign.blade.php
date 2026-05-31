@@ -14,7 +14,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Shah Sports</h1>
+            <h1>Auxbeam Bangladesh</h1>
         </div>
         
         <div class="content">
@@ -22,7 +22,7 @@
         </div>
         
         <div class="footer">
-            <p>Shah Sports - Your Sports Equipment Destination</p>
+            <p>Auxbeam Bangladesh - Your Premium LED Lighting Destination</p>
             <p><a href="{{ config('app.frontend_url') }}/unsubscribe?email={{ urlencode($recipient->email) }}">Unsubscribe</a></p>
         </div>
         
