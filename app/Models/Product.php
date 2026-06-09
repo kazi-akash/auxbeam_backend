@@ -455,4 +455,38 @@ class Product extends Model
         return $this->separate_shipping;
     }
 
+    /**
+     * Get services attached to this product.
+     */
+    public function services()
+    {
+        return $this->belongsToMany(Service::class, 'product_services')
+            ->withPivot('price', 'is_required', 'is_active', 'conditions')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get only active services for this product.
+     */
+    public function activeServices()
+    {
+        return $this->services()->wherePivot('is_active', true);
+    }
+
+    /**
+     * Get required services for this product.
+     */
+    public function requiredServices()
+    {
+        return $this->services()->wherePivot('is_required', true)->wherePivot('is_active', true);
+    }
+
+    /**
+     * Check if product has any required services.
+     */
+    public function hasRequiredServices(): bool
+    {
+        return $this->requiredServices()->exists();
+    }
+
 }

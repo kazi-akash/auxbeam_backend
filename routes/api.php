@@ -51,6 +51,15 @@ Route::prefix('cart')->group(function () {
     Route::get('available-coupons', [\App\Http\Controllers\Api\CartController::class, 'getAvailableCoupons']);
 });
 
+// Services (Public)
+Route::prefix('services')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\ServiceController::class, 'index']);
+    Route::post('validate', [\App\Http\Controllers\Api\ServiceController::class, 'validateServices']);
+    Route::get('payment-methods', [\App\Http\Controllers\Api\ServiceController::class, 'paymentMethods']);
+    Route::get('products/{productId}', [\App\Http\Controllers\Api\ServiceController::class, 'productServices']);
+    Route::get('order/{orderNumber}', [\App\Http\Controllers\Api\ServiceController::class, 'orderServices']);
+});
+
 // Reviews (Public - Read)
 Route::get('products/{productId}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'productReviews']);
 Route::get('reviews/product/{productId}', [\App\Http\Controllers\Api\ReviewController::class, 'productReviews']);
@@ -196,6 +205,16 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
         Route::post('{id}/cancel', [\App\Http\Controllers\Api\Admin\ProductImportController::class, 'cancel']);
         Route::delete('{id}', [\App\Http\Controllers\Api\Admin\ProductImportController::class, 'destroy']);
     });
+
+    // Services (Admin CRUD)
+    Route::apiResource('services', \App\Http\Controllers\Api\Admin\ServiceController::class);
+    Route::post('services/{id}/toggle', [\App\Http\Controllers\Api\Admin\ServiceController::class, 'toggle']);
+    // Product <-> Service management
+    Route::get('products/{productId}/services', [\App\Http\Controllers\Api\Admin\ServiceController::class, 'productServices']);
+    Route::post('products/{productId}/services', [\App\Http\Controllers\Api\Admin\ServiceController::class, 'attachService']);
+    Route::post('products/{productId}/services/sync', [\App\Http\Controllers\Api\Admin\ServiceController::class, 'syncServices']);
+    Route::put('products/{productId}/services/{serviceId}', [\App\Http\Controllers\Api\Admin\ServiceController::class, 'updateProductService']);
+    Route::delete('products/{productId}/services/{serviceId}', [\App\Http\Controllers\Api\Admin\ServiceController::class, 'detachService']);
 
     // Products
     Route::apiResource('products', \App\Http\Controllers\Api\Admin\ProductController::class);

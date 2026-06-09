@@ -25,11 +25,15 @@ class Order extends Model
         'billing_address_id',
         'subtotal',
         'shipping_cost',
+        'service_amount',
         'discount_amount',
         'tax_amount',
         'total_amount',
         'coupon_id',
         'shipping_method',
+        'delivery_type',
+        'scheduled_date',
+        'scheduled_time',
         'tracking_number',
         'status',
         'payment_status',
@@ -44,6 +48,7 @@ class Order extends Model
     protected $casts = [
         'subtotal' => 'decimal:2',
         'shipping_cost' => 'decimal:2',
+        'service_amount' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'tax_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
@@ -52,6 +57,22 @@ class Order extends Model
         'preorder_remaining_amount' => 'decimal:2',
         'follow_up_at' => 'datetime',
         'follow_up_completed' => 'boolean',
+        'scheduled_date' => 'date',
+    ];
+
+    public const DELIVERY_TYPES = [
+        'home_service'   => 'Home Service',
+        'office_booking' => 'Booking for Office',
+        'home_delivery'  => 'Home Delivery',
+        'outlet_pickup'  => 'Outlet Pickup',
+    ];
+
+    // Payment methods that are valid per delivery type
+    public const PAYMENT_METHODS_BY_DELIVERY = [
+        'home_service'   => ['ssl_commerz', 'bkash', 'nagad', 'cash_on_service', 'pos_on_service'],
+        'office_booking' => ['ssl_commerz', 'bkash', 'nagad', 'cash_on_delivery', 'pos_on_delivery'],
+        'home_delivery'  => ['ssl_commerz', 'bkash', 'nagad', 'cash_on_delivery', 'pos_on_delivery'],
+        'outlet_pickup'  => ['ssl_commerz', 'bkash', 'nagad', 'cash_on_delivery', 'pos_on_delivery'],
     ];
 
     /**
@@ -116,6 +137,14 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * Get services attached to this order.
+     */
+    public function orderServices()
+    {
+        return $this->hasMany(OrderServiceItem::class);
     }
 
     /**
@@ -293,7 +322,34 @@ class Order extends Model
     public function calculateTotals(): void
     {
         $this->subtotal = $this->items->sum('total_price');
-        $this->total_amount = $this->subtotal + $this->shipping_cost + $this->tax_amount - $this->discount_amount;
+        $this->service_amount = $this->orderServices->sum('price');
+        $this->total_amount = $this->subtotal + $this->shipping_cost + $this->service_amount + $this->tax_amount - $this->discount_amount;
+    }
+
+    /**
+     * Check if delivery type requires home visit.
+     */
+    public function isHomeService(): bool
+    {
+        return $this->delivery_type === 'home_service';
+    }
+
+    /**
+     * Get delivery type display name.
+     */
+    public function getDeliveryTypeDisplayAttribute(): string
+    {
+        return self::DELIVERY_TYPES[$this->delivery_type] ?? $this->delivery_type ?? 'Standard';
+    }
+
+    /**
+     * Get allowed payment methods for this order's delivery type.
+     */
+    public function getAllowedPaymentMethods(): array
+    {
+        return self::PAYMENT_METHODS_BY_DELIVERY[$this->delivery_type] ?? [
+            'ssl_commerz', 'bkash', 'nagad', 'cash_on_delivery', 'pos_on_delivery',
+        ];
     }
 
     /**

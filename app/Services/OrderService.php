@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\Address;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderServiceItem;
 use App\Models\Product;
 use App\Models\ProductVariation;
+use App\Models\Service;
 use App\Models\User;
 use App\Services\Contracts\CouponServiceInterface;
 use App\Services\Contracts\InventoryServiceInterface;
@@ -292,10 +294,14 @@ class OrderService implements OrderServiceInterface
                 $shippingCost = 0;
             }
 
+            // Calculate service costs
+            $selectedServices = $shippingData['selected_services'] ?? [];
+            $serviceAmount    = $this->calculateServiceAmount($selectedServices, $cartItems);
+
             // Calculate totals
             $totalDiscount = $promotionDiscount + $couponDiscount;
-            $taxAmount = 0;
-            $totalAmount = $subtotal + $shippingCost + $taxAmount - $totalDiscount;
+            $taxAmount     = 0;
+            $totalAmount   = $subtotal + $shippingCost + $serviceAmount + $taxAmount - $totalDiscount;
 
             // Determine preorder payment status
             $preorderPaymentStatus = 'pending';
@@ -307,27 +313,31 @@ class OrderService implements OrderServiceInterface
 
             // Create order
             $order = Order::create([
-                'user_id' => $user?->id,
-                'order_number' => $this->generateOrderNumber(),
-                'order_type' => 'online',
-                'is_preorder' => $isPreorder,
-                'preorder_deposit_paid' => $depositAmount,
-                'preorder_remaining_amount' => $remainingAmount,
-                'preorder_payment_status' => $preorderPaymentStatus,
-                'shipping_address_id' => $shippingAddressId,
-                'billing_address_id' => $billingAddressId,
-                'subtotal' => $subtotal,
-                'shipping_cost' => $shippingCost,
-                'discount_amount' => $totalDiscount,
-                'tax_amount' => $taxAmount,
-                'total_amount' => $payDepositOnly ? $depositAmount : $totalAmount,
-                'coupon_id' => $coupon?->id,
-                'shipping_method' => $shippingMethod,
-                'status' => 'pending',
-                'payment_status' => 'pending',
-                'notes' => $shippingData['notes'] ?? null,
+                'user_id'                  => $user?->id,
+                'order_number'             => $this->generateOrderNumber(),
+                'order_type'               => 'online',
+                'is_preorder'              => $isPreorder,
+                'preorder_deposit_paid'    => $depositAmount,
+                'preorder_remaining_amount'=> $remainingAmount,
+                'preorder_payment_status'  => $preorderPaymentStatus,
+                'shipping_address_id'      => $shippingAddressId,
+                'billing_address_id'       => $billingAddressId,
+                'subtotal'                 => $subtotal,
+                'shipping_cost'            => $shippingCost,
+                'service_amount'           => $serviceAmount,
+                'discount_amount'          => $totalDiscount,
+                'tax_amount'               => $taxAmount,
+                'total_amount'             => $payDepositOnly ? $depositAmount : $totalAmount,
+                'coupon_id'                => $coupon?->id,
+                'shipping_method'          => $shippingMethod,
+                'delivery_type'            => $shippingData['delivery_type'] ?? null,
+                'scheduled_date'           => $shippingData['scheduled_date'] ?? null,
+                'scheduled_time'           => $shippingData['scheduled_time'] ?? null,
+                'status'                   => 'pending',
+                'payment_status'           => 'pending',
+                'notes'                    => $shippingData['notes'] ?? null,
                 // Store guest info if not a registered user
-                'customer_name' => $user ? null : $guestName,
+                'customer_name'  => $user ? null : $guestName,
                 'customer_email' => $user ? null : $guestEmail,
                 'customer_phone' => $user ? null : $guestPhone,
             ]);
@@ -338,12 +348,15 @@ class OrderService implements OrderServiceInterface
                 $this->inventoryService->reserveStock($orderItem);
             }
 
+            // Attach services to the order
+            $this->attachOrderServices($order, $selectedServices, $cartItems);
+
             // Record coupon usage
             if ($coupon && $couponDiscount > 0) {
                 $this->couponService->recordCouponUsage($coupon, $order, $user?->email ?? $guestEmail, $couponDiscount);
             }
 
-            return $order->load(['items', 'user', 'shippingAddress', 'billingAddress']);
+            return $order->load(['items', 'user', 'shippingAddress', 'billingAddress', 'orderServices']);
         });
     }
 
@@ -573,7 +586,7 @@ class OrderService implements OrderServiceInterface
 
     /**
      * Prepare items for shipping calculation.
-     * 
+     *
      * @param array $cartItems
      * @return array
      */
@@ -600,5 +613,72 @@ class OrderService implements OrderServiceInterface
         }
 
         return $items;
+    }
+
+    /**
+     * Calculate total service cost for selected services against the cart items.
+     * Each service price is the max pivot price across all products in the cart.
+     */
+    protected function calculateServiceAmount(array $selectedServices, array $cartItems): float
+    {
+        $total = 0.0;
+
+        foreach ($selectedServices as $sel) {
+            $service = Service::find($sel['service_id']);
+            if (!$service) {
+                continue;
+            }
+
+            $price = 0.0;
+            foreach ($cartItems as $item) {
+                $pivot = $service->products()
+                    ->where('products.id', $item['product_id'])
+                    ->wherePivot('is_active', true)
+                    ->first();
+                if ($pivot) {
+                    $price = max($price, (float) $pivot->pivot->price);
+                }
+            }
+
+            $total += $price;
+        }
+
+        return $total;
+    }
+
+    /**
+     * Create order_services rows (snapshot) for the given order.
+     */
+    protected function attachOrderServices(Order $order, array $selectedServices, array $cartItems): void
+    {
+        foreach ($selectedServices as $sel) {
+            $service = Service::find($sel['service_id']);
+            if (!$service) {
+                continue;
+            }
+
+            // Resolve per-product price (max across cart)
+            $price = 0.0;
+            foreach ($cartItems as $item) {
+                $pivot = $service->products()
+                    ->where('products.id', $item['product_id'])
+                    ->wherePivot('is_active', true)
+                    ->first();
+                if ($pivot) {
+                    $price = max($price, (float) $pivot->pivot->price);
+                }
+            }
+
+            OrderServiceItem::create([
+                'order_id'         => $order->id,
+                'service_id'       => $service->id,
+                'service_name'     => $service->name,
+                'service_type'     => $service->type,
+                'price'            => $price,
+                'scheduled_date'   => $sel['scheduled_date'] ?? null,
+                'scheduled_time'   => $sel['scheduled_time'] ?? null,
+                'scheduling_notes' => $sel['scheduling_notes'] ?? null,
+            ]);
+        }
     }
 }

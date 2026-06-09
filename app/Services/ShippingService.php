@@ -76,8 +76,8 @@ class ShippingService implements ShippingServiceInterface
         $standardCost = $this->calculateStandardShippingCost($shippingGroups['default_shipping'], $address, $subtotal);
         $totalStandardCost = $standardCost + $customShippingCost;
         
-        $costs[self::METHOD_STANDARD] = [
-            'code' => self::METHOD_STANDARD,
+        $costs[self::METHOD_STANDARD_SHIPPING] = [
+            'code' => self::METHOD_STANDARD_SHIPPING,
             'name' => 'Standard Shipping',
             'description' => 'Free shipping on orders over 1000 BDT',
             'cost' => round($totalStandardCost, 2),
@@ -483,8 +483,8 @@ class ShippingService implements ShippingServiceInterface
 
         // Cost per additional kg
         $costPerKg = match ($method) {
-            self::METHOD_SHAH_SPORTS_TEAM => 20,
-            self::METHOD_PATHAO_COURIER => 15,
+            self::METHOD_AUXBEAM_BD => 20,
+            self::METHOD_STANDARD_SHIPPING => 15,
             default => 10,
         };
 
@@ -517,7 +517,7 @@ class ShippingService implements ShippingServiceInterface
         }
         
         // Handle standard shipping method
-        if ($method === self::METHOD_STANDARD) {
+        if ($method === self::METHOD_STANDARD_SHIPPING) {
             return $this->calculateStandardShippingCost($shippingGroups['default_shipping'], $address, $subtotal) + $customShippingCost;
         }
         

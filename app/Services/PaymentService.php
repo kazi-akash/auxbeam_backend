@@ -39,32 +39,50 @@ class PaymentService implements PaymentServiceInterface
      */
     public function processPayment(Order $order, string $method): array
     {
-        // Handle Cash on Delivery
-        if (in_array($method, ['cod', 'cash_on_delivery'])) {
+        // On-site payment methods (cash/POS at delivery or at time of service)
+        $onSiteMethods = [
+            'cod', 'cash_on_delivery',
+            'cash_on_service', 'pos_on_delivery', 'pos_on_service',
+        ];
+        if (in_array($method, $onSiteMethods)) {
+            $txPrefix = match ($method) {
+                'pos_on_delivery'  => 'POD',
+                'pos_on_service'   => 'POS',
+                'cash_on_service'  => 'COS',
+                default            => 'COD',
+            };
+
             $payment = Payment::create([
-                'order_id' => $order->id,
-                'user_id' => $order->user_id,
-                'amount' => $order->total_amount,
-                'currency' => 'BDT',
-                'payment_method' => 'manual', // Store as manual in DB
-                'transaction_id' => $this->generateTransactionId('COD'),
-                'status' => 'pending',
+                'order_id'         => $order->id,
+                'user_id'          => $order->user_id,
+                'amount'           => $order->total_amount,
+                'currency'         => 'BDT',
+                'payment_method'   => $method,
+                'transaction_id'   => $this->generateTransactionId($txPrefix),
+                'status'           => 'pending',
                 'gateway_response' => ['method' => $method],
             ]);
 
-            // Update order status for COD
             $order->update([
-                'status' => 'confirmed',
-                'payment_status' => 'pending', // Will be paid on delivery
+                'status'         => 'confirmed',
+                'payment_status' => 'pending',
             ]);
 
+            $messages = [
+                'cod'              => 'Order placed. Pay cash on delivery.',
+                'cash_on_delivery' => 'Order placed. Pay cash on delivery.',
+                'pos_on_delivery'  => 'Order placed. Pay via POS on delivery.',
+                'cash_on_service'  => 'Order placed. Pay cash when the service is provided.',
+                'pos_on_service'   => 'Order placed. Pay via POS when the service is provided.',
+            ];
+
             return [
-                'success' => true,
-                'payment_id' => $payment->id,
+                'success'        => true,
+                'payment_id'     => $payment->id,
                 'transaction_id' => $payment->transaction_id,
-                'amount' => $payment->amount,
-                'method' => $method,
-                'message' => 'Order placed successfully. Pay on delivery.',
+                'amount'         => $payment->amount,
+                'method'         => $method,
+                'message'        => $messages[$method] ?? 'Order placed successfully.',
             ];
         }
 

@@ -78,10 +78,23 @@ class CheckoutController extends Controller
             'billing_address_id' => 'nullable|exists:addresses,id',
             'billing_address' => 'nullable|array',
             'use_shipping_for_billing' => 'nullable|boolean',
-            // Other fields
+            // Delivery type (replaces/augments shipping_method)
+            'delivery_type' => 'nullable|in:home_service,office_booking,home_delivery,outlet_pickup',
             'shipping_method' => 'required|in:auxbeam_bd,standard_shipping,international_shipping',
+            // Services to add to this order
+            'selected_services' => 'nullable|array',
+            'selected_services.*.service_id' => 'required|exists:services,id',
+            'selected_services.*.scheduled_date' => 'nullable|date|after_or_equal:today',
+            'selected_services.*.scheduled_time' => 'nullable|string',
+            'selected_services.*.scheduling_notes' => 'nullable|string|max:500',
+            // Order-level scheduling (for office_booking delivery type)
+            'scheduled_date' => 'nullable|date|after_or_equal:today',
+            'scheduled_time' => 'nullable|string',
             'coupon_code' => 'nullable|string',
-            'payment_method' => 'required|in:ssl_commerz,bkash,nagad,cod,cash_on_delivery',
+            'payment_method' => [
+                'required',
+                'in:ssl_commerz,bkash,nagad,cod,cash_on_delivery,cash_on_service,pos_on_delivery,pos_on_service',
+            ],
             'notes' => 'nullable|string|max:500',
             'is_preorder' => 'nullable|boolean',
             'pay_deposit_only' => 'nullable|boolean',
@@ -103,25 +116,44 @@ class CheckoutController extends Controller
 
         $validated = $request->validate($rules);
 
+        // Validate payment method is allowed for the chosen delivery type
+        $deliveryType = $validated['delivery_type'] ?? null;
+        if ($deliveryType) {
+            $allowedMethods = \App\Models\Order::PAYMENT_METHODS_BY_DELIVERY[$deliveryType] ?? [];
+            $paymentMethod  = $validated['payment_method'];
+            // Normalise cod alias
+            $normalised = $paymentMethod === 'cod' ? 'cash_on_delivery' : $paymentMethod;
+            if (!empty($allowedMethods) && !in_array($normalised, $allowedMethods)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Payment method '{$paymentMethod}' is not allowed for delivery type '{$deliveryType}'.",
+                ], 422);
+            }
+        }
+
         $order = $this->orderService->createOrderWithGuest(
             $user,
             $validated['items'],
             [
-                'shipping_address_id' => $validated['shipping_address_id'] ?? null,
-                'shipping_address' => $validated['shipping_address'] ?? null,
-                'billing_address_id' => $validated['billing_address_id'] ?? null,
-                'billing_address' => $validated['billing_address'] ?? null,
+                'shipping_address_id'      => $validated['shipping_address_id'] ?? null,
+                'shipping_address'         => $validated['shipping_address'] ?? null,
+                'billing_address_id'       => $validated['billing_address_id'] ?? null,
+                'billing_address'          => $validated['billing_address'] ?? null,
                 'use_shipping_for_billing' => $validated['use_shipping_for_billing'] ?? true,
-                'shipping_method' => $validated['shipping_method'],
-                'notes' => $validated['notes'] ?? null,
-                'is_preorder' => $validated['is_preorder'] ?? false,
-                'pay_deposit_only' => $validated['pay_deposit_only'] ?? false,
+                'shipping_method'          => $validated['shipping_method'],
+                'delivery_type'            => $deliveryType,
+                'scheduled_date'           => $validated['scheduled_date'] ?? null,
+                'scheduled_time'           => $validated['scheduled_time'] ?? null,
+                'selected_services'        => $validated['selected_services'] ?? [],
+                'notes'                    => $validated['notes'] ?? null,
+                'is_preorder'              => $validated['is_preorder'] ?? false,
+                'pay_deposit_only'         => $validated['pay_deposit_only'] ?? false,
                 // Guest info
-                'guest_email' => $validated['guest_email'] ?? null,
-                'guest_name' => $validated['guest_name'] ?? null,
-                'guest_phone' => $validated['guest_phone'] ?? null,
+                'guest_email'    => $validated['guest_email'] ?? null,
+                'guest_name'     => $validated['guest_name'] ?? null,
+                'guest_phone'    => $validated['guest_phone'] ?? null,
                 'create_account' => $validated['create_account'] ?? false,
-                'password' => $validated['password'] ?? null,
+                'password'       => $validated['password'] ?? null,
             ],
             $validated['coupon_code'] ?? null
         );
@@ -144,9 +176,17 @@ class CheckoutController extends Controller
             'account_created' => $order->user_id && ($validated['create_account'] ?? false),
         ];
 
-        // For COD, add success message
-        if (in_array($validated['payment_method'], ['cod', 'cash_on_delivery'])) {
-            $responseData['message'] = 'Order placed successfully. You will pay on delivery.';
+        // Friendly messages per payment method
+        $onSitePayments = ['cod', 'cash_on_delivery', 'cash_on_service', 'pos_on_delivery', 'pos_on_service'];
+        if (in_array($validated['payment_method'], $onSitePayments)) {
+            $msgs = [
+                'cod'              => 'Order placed. You will pay cash on delivery.',
+                'cash_on_delivery' => 'Order placed. You will pay cash on delivery.',
+                'pos_on_delivery'  => 'Order placed. Payment via POS on delivery.',
+                'cash_on_service'  => 'Order placed. You will pay cash when the service is provided.',
+                'pos_on_service'   => 'Order placed. Payment via POS when the service is provided.',
+            ];
+            $responseData['message'] = $msgs[$validated['payment_method']] ?? 'Order placed successfully.';
         }
 
         return response()->json([

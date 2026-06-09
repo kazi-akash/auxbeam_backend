@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductVariation;
+use App\Models\Service;
 use App\Services\Contracts\CouponServiceInterface;
 use App\Services\Contracts\InventoryServiceInterface;
 use App\Services\Contracts\PromotionServiceInterface;
@@ -30,6 +31,11 @@ class CartController extends Controller
             'items.*.variation_id' => 'nullable|exists:product_variations,id',
             'items.*.quantity' => 'required|integer|min:1',
             'coupon_code' => 'nullable|string',
+            // Optional: services the customer wants to add
+            'selected_services' => 'nullable|array',
+            'selected_services.*.service_id' => 'required|exists:services,id',
+            'selected_services.*.scheduled_date' => 'nullable|date|after_or_equal:today',
+            'selected_services.*.scheduled_time' => 'nullable|string',
         ]);
 
         $cartItems = [];
@@ -37,11 +43,11 @@ class CartController extends Controller
 
         foreach ($validated['items'] as $item) {
             $product = Product::with('images')->find($item['product_id']);
-            $variation = isset($item['variation_id']) 
-                ? ProductVariation::find($item['variation_id']) 
+            $variation = isset($item['variation_id'])
+                ? ProductVariation::find($item['variation_id'])
                 : null;
 
-            // Check availability
+            // Check availability — record error but still include item in pricing
             $available = $this->inventoryService->checkAvailability(
                 $product,
                 $item['quantity'],
@@ -50,7 +56,6 @@ class CartController extends Controller
 
             if (!$available) {
                 $errors[] = "Insufficient stock for {$product->name}";
-                continue;
             }
 
             $price = $variation?->price ?? $product->price;
@@ -64,14 +69,21 @@ class CartController extends Controller
                 'price' => $price,
                 'quantity' => $item['quantity'],
                 'total' => $price * $item['quantity'],
+                'in_stock' => $available,
             ];
         }
 
         // Apply promotions
         $promotionResult = $this->promotionService->applyPromotion($cartItems);
-        $subtotal = collect($promotionResult['items'])->sum(fn($i) => $i['discounted_price'] * $i['quantity']);
 
-        // Apply coupon if provided
+        // Raw subtotal before any discounts
+        $rawSubtotal = collect($promotionResult['items'])->sum(fn($i) => $i['price'] * $i['quantity']);
+
+        // Subtotal after all promotion discounts (product-level + cart-level)
+        $promotionDiscount = $promotionResult['total_discount'];
+        $subtotalAfterPromotion = $rawSubtotal - $promotionDiscount;
+
+        // Apply coupon if provided (coupon is applied on top of promotion-discounted subtotal)
         $couponDiscount = 0;
         $couponError = null;
         if (!empty($validated['coupon_code'])) {
@@ -79,7 +91,7 @@ class CartController extends Controller
                 $validated['coupon_code'],
                 auth()->user()?->email ?? '',
                 $cartItems,
-                $subtotal
+                $subtotalAfterPromotion
             );
 
             if ($couponResult['valid']) {
@@ -89,16 +101,77 @@ class CartController extends Controller
             }
         }
 
+        // Calculate service costs and validate required services
+        $serviceDetails  = [];
+        $serviceErrors   = [];
+        $totalServiceCost = 0;
+        $missingRequired  = [];
+
+        // Check which products have required services
+        foreach ($validated['items'] as $item) {
+            $product = Product::find($item['product_id']);
+            $requiredServiceIds = $product->requiredServices()->pluck('services.id')->toArray();
+            $selectedIds = collect($validated['selected_services'] ?? [])->pluck('service_id')->toArray();
+
+            foreach ($requiredServiceIds as $reqId) {
+                if (!in_array($reqId, $selectedIds)) {
+                    $svc = Service::find($reqId);
+                    $missingRequired[] = "'{$product->name}' requires service: {$svc->name}";
+                }
+            }
+        }
+
+        foreach ($validated['selected_services'] ?? [] as $sel) {
+            $service = Service::active()->find($sel['service_id']);
+            if (!$service) {
+                $serviceErrors[] = "Service ID {$sel['service_id']} is not available.";
+                continue;
+            }
+
+            if ($service->requires_scheduling && empty($sel['scheduled_date'])) {
+                $serviceErrors[] = "{$service->name} requires a scheduled date.";
+            }
+
+            // Per-product pivot price (use max across cart items that have this service)
+            $price = 0;
+            foreach ($validated['items'] as $item) {
+                $pivot = $service->products()
+                    ->where('products.id', $item['product_id'])
+                    ->wherePivot('is_active', true)
+                    ->first();
+                if ($pivot) {
+                    $price = max($price, (float) $pivot->pivot->price);
+                }
+            }
+
+            $totalServiceCost += $price;
+            $serviceDetails[] = [
+                'service_id'     => $service->id,
+                'name'           => $service->name,
+                'type'           => $service->type,
+                'type_display'   => $service->type_display,
+                'price'          => $price,
+                'scheduled_date' => $sel['scheduled_date'] ?? null,
+                'scheduled_time' => $sel['scheduled_time'] ?? null,
+            ];
+        }
+
+        $allErrors = array_merge($errors, $serviceErrors, $missingRequired);
+        $grandTotal = $subtotalAfterPromotion - $couponDiscount + $totalServiceCost;
+
         return response()->json([
             'success' => true,
             'data' => [
-                'items' => $promotionResult['items'],
-                'subtotal' => $subtotal,
-                'promotion_discount' => $promotionResult['total_discount'],
-                'coupon_discount' => $couponDiscount,
-                'coupon_error' => $couponError,
-                'total' => $subtotal - $couponDiscount,
-                'errors' => $errors,
+                'items'              => $promotionResult['items'],
+                'subtotal'           => $rawSubtotal,
+                'promotion_discount' => $promotionDiscount,
+                'coupon_discount'    => $couponDiscount,
+                'coupon_error'       => $couponError,
+                'service_amount'     => $totalServiceCost,
+                'services'           => $serviceDetails,
+                'total'              => $grandTotal,
+                'errors'             => $allErrors,
+                'missing_required_services' => $missingRequired,
             ],
         ]);
     }
